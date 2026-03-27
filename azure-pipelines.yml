@@ -132,9 +132,12 @@ stages:
             displayName: "Install tooling (uv, setuptools, dagster-cloud)"
 
           # Step 1: Initialize branch deploy session
+          # --deployment is the base deployment (prod), --deployment-type=branch
+          # tells Dagster to create an ephemeral branch deployment off of it
           - script: |
               dg plus deploy start \
-                --deployment $(BRANCH_NAME) \
+                --deployment $(DEPLOYMENT) \
+                --deployment-type branch \
                 --project-dir $(DAGSTER_PROJECT_DIR)
             displayName: "Initialize branch deploy session"
             env:

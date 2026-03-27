@@ -1,4 +1,4 @@
-type: west_bend_demo.components.PartitionedDbtSnowflake
+type: orchestration_poc.components.PartitionedDbtSnowflake
 
 attributes:
   project:

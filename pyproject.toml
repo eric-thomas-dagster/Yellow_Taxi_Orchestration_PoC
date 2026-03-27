@@ -1,5 +1,5 @@
 [project]
-name = "west_bend_demo"
+name = "orchestration_poc"
 requires-python = ">=3.10,<3.15"
 version = "0.1.0"
 dependencies = [
@@ -26,9 +26,9 @@ force-include = { "pyproject.toml" = "pyproject.toml" }
 directory_type = "project"
 
 [tool.dg.project]
-root_module = "west_bend_demo"
+root_module = "orchestration_poc"
 registry_modules = [
-    "west_bend_demo.components.*",
+    "orchestration_poc.components.*",
 ]
 
 

@@ -1,4 +1,4 @@
-type: west_bend_demo.components.DatabricksNotebookComponent
+type: orchestration_poc.components.DatabricksNotebookComponent
 
 attributes:
   workspace_host: "https://your-workspace.cloud.databricks.com"

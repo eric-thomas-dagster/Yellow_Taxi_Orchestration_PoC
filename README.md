@@ -48,15 +48,10 @@ This project was built using [Claude Code](https://docs.anthropic.com/en/docs/bu
    claude install-skill https://github.com/dagster-io/dagster-skill
    ```
 
-2. Scaffold a new Dagster project:
-   ```bash
-   uvx create-dagster project my-project
-   cd my-project
+2. Run Claude Code with a prompt like:
    ```
-
-3. Run Claude Code with a prompt like:
-   ```
-   Create a Dagster project that orchestrates the existing pipeline at
+   Scaffold a new Dagster project called "orchestration-poc" and then
+   create a Dagster implementation that orchestrates the existing pipeline at
    https://github.com/kentmaxwell/orchestration-poc
 
    The pipeline has:

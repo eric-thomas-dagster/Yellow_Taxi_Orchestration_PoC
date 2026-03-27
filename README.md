@@ -56,17 +56,47 @@ This project was built using [Claude Code](https://docs.anthropic.com/en/docs/bu
 
    The pipeline has:
    - Databricks notebooks for ingesting NYC Yellow Taxi data (source_taxi_zone_lookup,
-     source_yellow_tripdata, export_aggregate_data)
-   - A dbt Snowflake project with staging, curated, and MRT layers
+     source_yellow_tripdata, export_aggregate_data). Notebooks are parameterized
+     with YEAR, MONTH, and ENVIRONMENT variables.
+   - A dbt Snowflake project (in the snowflake/ directory) with staging views,
+     curated dimension/fact tables (incremental merge), and MRT aggregate tables.
+     Use the existing dbt SQL as-is — do not rewrite the models.
    - Monthly execution cadence with idempotent incremental models
 
-   Requirements:
-   - Use the existing dbt SQL and notebook parameterization as-is
-   - Add monthly partitions for temporal data processing windows
-   - Wire Databricks ingestion assets to dbt source nodes for full lineage
+   Dagster component architecture:
+   - Create a custom DatabricksNotebookComponent (inheriting from dg.Component,
+     dg.Model, dg.Resolvable) that uses DatabricksClientResource for live execution
+     and simulated execution for demo mode. Extract YEAR/MONTH from the Dagster
+     partition key. Configure notebooks via YAML with notebook_path, asset_key,
+     group_name, deps, kinds, and notebook_params. Set kinds like
+     ["databricks", "python", "delta"] for technology badges in the UI.
+   - Subclass the built-in DbtProjectComponent for the dbt project. Override
+     get_asset_spec() to:
+     (a) Remap dbt source asset keys to the Databricks ingestion asset keys
+         for end-to-end lineage (configurable source_key_map in YAML)
+     (b) Apply MonthlyPartitionsDefinition to all dbt assets
+     (c) Set a configurable group_name (e.g. "transforms") on all dbt assets
+     Let dbt handle its own incremental watermarks — do not inject window
+     vars. Only pass the env var for schema isolation.
+   - Use --indirect-selection=cautious in dbt cli_args to avoid test failures
+     when Dagster subsets the dbt build
+   - Put all component configuration in defs.yaml files under the defs/ folder
+
+   Orchestration:
+   - Define jobs for full pipeline, ingestion-only, transformation-only, and
+     export using AssetSelection.groups()
+   - Build a monthly schedule from the partitioned full pipeline job
+   - Put orchestration in defs/orchestration/orchestration.py so it is loaded
+     by load_from_defs_folder automatically
+   - Keep definitions.py as a simple load_from_defs_folder call with no merging
+
+   Demo mode:
    - Support both demo mode (DuckDB locally) and live mode (Snowflake + Databricks)
-   - Include jobs for full pipeline, ingestion-only, transformation-only, and export
-   - Include a monthly schedule
+   - Add a dbt on-run-start hook macro that creates sample source tables in
+     DuckDB to simulate the Databricks ingestion output
+   - Make the dbt source database configurable via a var so DuckDB and Snowflake
+     can use different database names
+   - Use dbt profiles with both a dev (DuckDB) and snowflake target
    ```
 
 ## Going Live

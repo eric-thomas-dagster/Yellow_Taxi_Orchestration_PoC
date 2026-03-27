@@ -1,12 +1,21 @@
 # Azure DevOps Pipeline for Dagster Cloud Serverless Deployment
 #
+# This pipeline mirrors the dg plus deploy lifecycle used in the GitHub Actions workflow:
+#   1. dg plus deploy start       — Initialize a deploy session
+#   2. uv sync                    — Install project dependencies
+#   3. dg plus deploy refresh-defs-state — Prepare StateBackedComponents (e.g. dbt manifest)
+#   4. dg plus deploy build-and-push    — Build PEX and upload to Dagster Cloud
+#   5. dg plus deploy finish            — Finalize the deployment
+#
 # Setup:
-# 1. Create a CI API token: dg plus create ci-api-token --description "Azure DevOps"
+# 1. Create a CI API token (run locally, one-time):
+#      pip install dagster-cloud
+#      dg plus create ci-api-token --description "Azure DevOps pipeline"
 # 2. In Azure DevOps, create a Variable Group called "dagster-cloud" with:
-#    - DAGSTER_CLOUD_API_TOKEN (secret): the token from step 1
+#    - DAGSTER_CLOUD_API_TOKEN (mark as secret): the token from step 1
 #    - DAGSTER_CLOUD_ORGANIZATION: your Dagster+ organization name
-# 3. Update PYTHON_VERSION and PACKAGE_NAME below if needed
-# 4. Point your Azure DevOps pipeline at this file
+# 3. Update PYTHON_VERSION below if needed
+# 4. Create a pipeline in Azure DevOps pointing at this file
 
 trigger:
   branches:
@@ -27,45 +36,81 @@ variables:
   - group: dagster-cloud
   - name: PYTHON_VERSION
     value: "3.12"
-  - name: PACKAGE_NAME
-    value: "orchestration_poc"
-  - name: LOCATION_NAME
-    value: "orchestration-poc"
+  - name: DAGSTER_PROJECT_DIR
+    value: "."
   - name: DEPLOYMENT
     value: "prod"
 
 stages:
+  # ──────────────────────────────────────────────────────────────────
+  # Production deploy on push to main
+  # ──────────────────────────────────────────────────────────────────
   - stage: Deploy
     displayName: "Deploy to Dagster Cloud"
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
     jobs:
       - job: ServerlessDeploy
         displayName: "Serverless PEX Deploy"
         steps:
+          - checkout: self
+
           - task: UsePythonVersion@0
             inputs:
               versionSpec: $(PYTHON_VERSION)
             displayName: "Set up Python $(PYTHON_VERSION)"
 
           - script: |
-              pip install uv
-              uv sync
-            displayName: "Install dependencies"
+              pip install uv setuptools dagster-cloud
+            displayName: "Install tooling (uv, setuptools, dagster-cloud)"
 
+          # Step 1: Initialize deploy session
           - script: |
-              pip install dagster-cloud
-            displayName: "Install dagster-cloud CLI"
-
-          - script: |
-              dagster-cloud serverless deploy-python-executable . \
-                --location-name $(LOCATION_NAME) \
-                --package-name $(PACKAGE_NAME) \
-                --python-version $(PYTHON_VERSION)
-            displayName: "Deploy to Dagster+ Serverless"
+              dg plus deploy start \
+                --deployment $(DEPLOYMENT) \
+                --project-dir $(DAGSTER_PROJECT_DIR)
+            displayName: "Initialize deploy session"
             env:
               DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
               DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
 
+          # Step 2: Install project dependencies
+          - script: |
+              cd $(DAGSTER_PROJECT_DIR)
+              for project in $(uv run dg list projects); do
+                (cd "$project" && uv sync)
+              done
+            displayName: "Sync project dependencies"
+
+          # Step 3: Refresh defs state (dbt manifest, etc.)
+          - script: |
+              dg plus deploy refresh-defs-state \
+                --target-path=$(DAGSTER_PROJECT_DIR)
+            displayName: "Refresh defs state"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
+
+          # Step 4: Build PEX and upload
+          - script: |
+              dg plus deploy build-and-push \
+                --agent-type=serverless \
+                --python-version $(PYTHON_VERSION)
+            displayName: "Build and push PEX"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
+
+          # Step 5: Finalize deployment
+          - script: |
+              dg plus deploy finish
+            displayName: "Finalize deployment"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
+
+  # ──────────────────────────────────────────────────────────────────
+  # Branch deployment for pull requests (preview environment)
+  # ──────────────────────────────────────────────────────────────────
   - stage: BranchDeploy
     displayName: "Branch Deployment (PR Preview)"
     condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
@@ -75,27 +120,58 @@ stages:
         variables:
           BRANCH_NAME: $[replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '')]
         steps:
+          - checkout: self
+
           - task: UsePythonVersion@0
             inputs:
               versionSpec: $(PYTHON_VERSION)
             displayName: "Set up Python $(PYTHON_VERSION)"
 
           - script: |
-              pip install uv
-              uv sync
-            displayName: "Install dependencies"
+              pip install uv setuptools dagster-cloud
+            displayName: "Install tooling (uv, setuptools, dagster-cloud)"
 
+          # Step 1: Initialize branch deploy session
           - script: |
-              pip install dagster-cloud
-            displayName: "Install dagster-cloud CLI"
+              dg plus deploy start \
+                --deployment $(BRANCH_NAME) \
+                --project-dir $(DAGSTER_PROJECT_DIR)
+            displayName: "Initialize branch deploy session"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
 
+          # Step 2: Install project dependencies
           - script: |
-              dagster-cloud serverless deploy-python-executable . \
-                --location-name $(LOCATION_NAME) \
-                --package-name $(PACKAGE_NAME) \
-                --python-version $(PYTHON_VERSION) \
-                --deployment $(BRANCH_NAME)
-            displayName: "Deploy branch to Dagster+"
+              cd $(DAGSTER_PROJECT_DIR)
+              for project in $(uv run dg list projects); do
+                (cd "$project" && uv sync)
+              done
+            displayName: "Sync project dependencies"
+
+          # Step 3: Refresh defs state
+          - script: |
+              dg plus deploy refresh-defs-state \
+                --target-path=$(DAGSTER_PROJECT_DIR)
+            displayName: "Refresh defs state"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
+
+          # Step 4: Build PEX and upload
+          - script: |
+              dg plus deploy build-and-push \
+                --agent-type=serverless \
+                --python-version $(PYTHON_VERSION)
+            displayName: "Build and push PEX"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
+
+          # Step 5: Finalize branch deployment
+          - script: |
+              dg plus deploy finish
+            displayName: "Finalize branch deployment"
             env:
               DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
               DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)

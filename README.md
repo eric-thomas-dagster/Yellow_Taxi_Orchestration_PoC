@@ -28,6 +28,52 @@ source_yellow_tripdata  → stg_yellow_taxi_trips ──────────
                                                 export_aggregate_data
 ```
 
+## Source Pipeline
+
+This project orchestrates the existing pipeline defined in [kentmaxwell/orchestration-poc](https://github.com/kentmaxwell/orchestration-poc), which contains:
+
+- **Databricks notebooks** for ingesting NYC Yellow Taxi data from TLC into ADLS/Delta
+- **dbt Snowflake project** for staging, curated, and mart-layer transformations
+- **Export notebook** for writing aggregates to Azure File Share
+
+Dagster wraps the existing code as-is — the dbt SQL and Databricks notebooks are unchanged. Dagster adds orchestration, scheduling, dependency management, monthly partitions, backfill support, and end-to-end lineage visibility.
+
+## Recreating This Project
+
+This project was built using [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code/overview) with Dagster-specific skills. To recreate it from scratch or adapt it for a different pipeline:
+
+1. Install Claude Code and the Dagster skills:
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   claude install-skill https://github.com/dagster-io/dagster-skill
+   ```
+
+2. Scaffold a new Dagster project:
+   ```bash
+   uvx create-dagster project my-project
+   cd my-project
+   ```
+
+3. Run Claude Code with a prompt like:
+   ```
+   Create a Dagster project that orchestrates the existing pipeline at
+   https://github.com/kentmaxwell/orchestration-poc
+
+   The pipeline has:
+   - Databricks notebooks for ingesting NYC Yellow Taxi data (source_taxi_zone_lookup,
+     source_yellow_tripdata, export_aggregate_data)
+   - A dbt Snowflake project with staging, curated, and MRT layers
+   - Monthly execution cadence with idempotent incremental models
+
+   Requirements:
+   - Use the existing dbt SQL and notebook parameterization as-is
+   - Add monthly partitions for temporal data processing windows
+   - Wire Databricks ingestion assets to dbt source nodes for full lineage
+   - Support both demo mode (DuckDB locally) and live mode (Snowflake + Databricks)
+   - Include jobs for full pipeline, ingestion-only, transformation-only, and export
+   - Include a monthly schedule
+   ```
+
 ## Going Live
 
 Set `demo_mode: false` in the Databricks YAML configs and configure:

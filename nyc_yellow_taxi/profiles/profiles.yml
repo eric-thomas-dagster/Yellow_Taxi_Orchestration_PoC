@@ -1,0 +1,22 @@
+nyc_yellow_taxi:
+  target: dev
+  outputs:
+    # DuckDB target for local demo mode (dbt parse / local development)
+    dev:
+      type: duckdb
+      path: nyc_yellow_taxi.duckdb
+      threads: 1
+
+    # Snowflake target for live POC execution
+    # Activate with: target: snowflake in the component YAML
+    # Credentials should be set via environment variables
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'SYSADMIN') }}"
+      database: WBMIQA_ORCHPOC_DB
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
+      schema: CURATED
+      threads: 4

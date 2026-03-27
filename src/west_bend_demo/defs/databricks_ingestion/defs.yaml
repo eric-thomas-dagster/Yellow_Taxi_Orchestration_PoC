@@ -1,0 +1,43 @@
+type: west_bend_demo.components.DatabricksNotebookComponent
+
+attributes:
+  workspace_host: "https://westbend.cloud.databricks.com"
+  # token: Set via DATABRICKS_TOKEN env var, or uncomment and set here
+  # cluster_id: "0123-456789-abcdefgh"  # Set to your existing cluster ID
+  environment: "qa_poc"
+  demo_mode: true
+  poll_interval_seconds: 10
+  max_wait_time_seconds: 3600
+  notebooks:
+    # One-time reference data load (unpartitioned)
+    # Notebook downloads taxi_zone_lookup.csv from TLC CloudFront,
+    # adds audit columns, writes to Delta: raw_edl_qa_poc.{ENV}.taxi_zone_lookup
+    - notebook_path: "/Repos/west-bend/orchestration-poc/databricks/source_taxi_zone_lookup"
+      asset_key: "source_taxi_zone_lookup"
+      group_name: "databricks_ingestion"
+      description: >
+        One-time load of 265 NYC taxi zone reference records from TLC CloudFront
+        into Unity Catalog Delta table (raw_edl_qa_poc.{ENV}.taxi_zone_lookup).
+        Downloads CSV, applies schema, adds audit columns (source_execution_id,
+        source_execution_dt, source_file). Overwrites entire table on each run.
+      partitioned: false
+      kinds: ["databricks", "python", "delta"]
+
+    # Monthly partitioned taxi trip ingestion
+    # Notebook downloads yellow_tripdata_{YEAR}-{MONTH}.parquet from TLC,
+    # streams in 8MB chunks to Unity Catalog Volume, casts columns,
+    # adds audit + partition columns, writes with replaceWhere for idempotent overwrites
+    - notebook_path: "/Repos/west-bend/orchestration-poc/databricks/source_yellow_tripdata"
+      asset_key: "source_yellow_tripdata"
+      group_name: "databricks_ingestion"
+      description: >
+        Monthly ingestion of NYC Yellow Taxi parquet files from TLC CloudFront.
+        Downloads yellow_tripdata_{YEAR}-{MONTH}.parquet, streams to Unity Catalog
+        Volume, casts to explicit types, adds audit columns (source_execution_id,
+        source_execution_dt, source_file) and partition columns (trip_year, trip_month).
+        Uses replaceWhere for idempotent partition-level overwrites to
+        raw_edl_qa_poc.{ENV}.yellow_taxi_trips.
+      partitioned: true
+      kinds: ["databricks", "python", "delta"]
+      notebook_params:
+        CATALOG: "raw_edl_qa_poc"

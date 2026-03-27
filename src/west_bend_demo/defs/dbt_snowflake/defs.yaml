@@ -1,0 +1,21 @@
+type: west_bend_demo.components.PartitionedDbtSnowflake
+
+attributes:
+  project:
+    project_dir: "{{ project_root }}/nyc_yellow_taxi"
+    profiles_dir: "{{ project_root }}/nyc_yellow_taxi/profiles"
+    profile: "nyc_yellow_taxi"
+    target: "dev"
+  op:
+    backfill_policy:
+      type: "single_run"
+  cli_args:
+    - "build"
+    - "--indirect-selection=cautious"
+    - "--vars":
+        env: "KENT"
+        source_database: "nyc_yellow_taxi"
+  group_name: "transforms"
+  source_key_map:
+    "source.nyc_yellow_taxi.edl.YELLOW_TAXI_TRIPS": "source_yellow_tripdata"
+    "source.nyc_yellow_taxi.edl.TAXI_ZONE_LOOKUP": "source_taxi_zone_lookup"

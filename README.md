@@ -38,14 +38,48 @@ Set `demo_mode: false` in the Databricks YAML configs and configure:
 
 ## Deploying to Dagster Cloud
 
-The included GitHub Actions workflow (`.github/workflows/dagster-plus-deploy.yml`) is a template. To deploy to your own Dagster Cloud organization:
+### Azure DevOps
+
+An Azure DevOps pipeline is included at `azure-pipelines.yml`. To set it up:
+
+1. Generate a CI API token (run locally, one-time):
+   ```bash
+   pip install dagster-cloud
+   dg plus create ci-api-token --description "Azure DevOps pipeline"
+   ```
+
+2. In Azure DevOps, create a **Variable Group** called `dagster-cloud` with:
+   - `DAGSTER_CLOUD_API_TOKEN` (mark as secret): the token from step 1
+   - `DAGSTER_CLOUD_ORGANIZATION`: your Dagster+ organization name
+
+3. Create a pipeline pointing at `azure-pipelines.yml`
+
+Pushing to `main` deploys to production. Pull requests create ephemeral branch deployments for preview.
+
+### GitHub Actions
+
+A GitHub Actions workflow is also included at `.github/workflows/dagster-plus-deploy.yml`. To use it instead:
 
 1. Follow the [Dagster Cloud CI/CD setup guide](https://docs.dagster.io/deployment/dagster-plus/deploying-code/configuring-ci-cd)
-2. Run `dg plus deploy configure --git-provider github` to generate a workflow configured for your org
-3. Create a CI API token: `dg plus create ci-api-token`
-4. Set `DAGSTER_CLOUD_API_TOKEN` as a GitHub secret in your repository
+2. Run `dg plus deploy configure --git-provider github` to regenerate the workflow for your org
+3. Set `DAGSTER_CLOUD_API_TOKEN` as a GitHub secret
 
-Pushing to `main` will auto-deploy. Pull requests create ephemeral branch deployments for preview.
+### Other CI Systems
+
+Dagster Cloud supports deployment from any CI system via the CLI:
+
+```bash
+pip install dagster-cloud
+export DAGSTER_CLOUD_API_TOKEN="your-token"
+export DAGSTER_CLOUD_ORGANIZATION="your-org"
+
+dagster-cloud serverless deploy-python-executable . \
+  --location-name orchestration-poc \
+  --package-name orchestration_poc \
+  --python-version 3.12
+```
+
+See the [Dagster Cloud CI/CD docs](https://docs.dagster.io/deployment/dagster-plus/deploying-code/configuring-ci-cd) for more details.
 
 ## Learn More
 

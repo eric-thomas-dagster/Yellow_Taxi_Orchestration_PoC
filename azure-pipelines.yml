@@ -1,0 +1,101 @@
+# Azure DevOps Pipeline for Dagster Cloud Serverless Deployment
+#
+# Setup:
+# 1. Create a CI API token: dg plus create ci-api-token --description "Azure DevOps"
+# 2. In Azure DevOps, create a Variable Group called "dagster-cloud" with:
+#    - DAGSTER_CLOUD_API_TOKEN (secret): the token from step 1
+#    - DAGSTER_CLOUD_ORGANIZATION: your Dagster+ organization name
+# 3. Update PYTHON_VERSION and PACKAGE_NAME below if needed
+# 4. Point your Azure DevOps pipeline at this file
+
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  - group: dagster-cloud
+  - name: PYTHON_VERSION
+    value: "3.12"
+  - name: PACKAGE_NAME
+    value: "orchestration_poc"
+  - name: LOCATION_NAME
+    value: "orchestration-poc"
+  - name: DEPLOYMENT
+    value: "prod"
+
+stages:
+  - stage: Deploy
+    displayName: "Deploy to Dagster Cloud"
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: ServerlessDeploy
+        displayName: "Serverless PEX Deploy"
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+            displayName: "Set up Python $(PYTHON_VERSION)"
+
+          - script: |
+              pip install uv
+              uv sync
+            displayName: "Install dependencies"
+
+          - script: |
+              pip install dagster-cloud
+            displayName: "Install dagster-cloud CLI"
+
+          - script: |
+              dagster-cloud serverless deploy-python-executable . \
+                --location-name $(LOCATION_NAME) \
+                --package-name $(PACKAGE_NAME) \
+                --python-version $(PYTHON_VERSION)
+            displayName: "Deploy to Dagster+ Serverless"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)
+
+  - stage: BranchDeploy
+    displayName: "Branch Deployment (PR Preview)"
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: BranchDeploy
+        displayName: "Deploy PR Branch"
+        variables:
+          BRANCH_NAME: $[replace(variables['System.PullRequest.SourceBranch'], 'refs/heads/', '')]
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+            displayName: "Set up Python $(PYTHON_VERSION)"
+
+          - script: |
+              pip install uv
+              uv sync
+            displayName: "Install dependencies"
+
+          - script: |
+              pip install dagster-cloud
+            displayName: "Install dagster-cloud CLI"
+
+          - script: |
+              dagster-cloud serverless deploy-python-executable . \
+                --location-name $(LOCATION_NAME) \
+                --package-name $(PACKAGE_NAME) \
+                --python-version $(PYTHON_VERSION) \
+                --deployment $(BRANCH_NAME)
+            displayName: "Deploy branch to Dagster+"
+            env:
+              DAGSTER_CLOUD_API_TOKEN: $(DAGSTER_CLOUD_API_TOKEN)
+              DAGSTER_CLOUD_ORGANIZATION: $(DAGSTER_CLOUD_ORGANIZATION)

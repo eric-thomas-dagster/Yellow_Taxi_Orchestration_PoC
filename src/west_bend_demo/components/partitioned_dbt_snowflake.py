@@ -1,11 +1,11 @@
-"""Partitioned dbt Snowflake component for West Bend POC.
+"""Partitioned dbt Snowflake component for NYC Yellow Taxi PoC.
 
 Subclasses the built-in DbtProjectComponent to add:
   - Source-to-Databricks asset key mapping for end-to-end lineage
   - Monthly partitions for orchestration and backfill
   - Configurable group name for dbt assets
 
-West Bend's actual dbt SQL is used as-is — dbt handles its own incremental
+The existing dbt SQL is used as-is — dbt handles its own incremental
 watermarks (pickup_datetime > max). Dagster provides scheduling, dependency
 management, backfill UI, and partition-level observability.
 """
@@ -24,7 +24,7 @@ _MONTHLY_PARTITIONS = dg.MonthlyPartitionsDefinition(
 
 @dataclass
 class PartitionedDbtSnowflake(DbtProjectComponent):
-    """West Bend's dbt project with monthly partitions and Databricks lineage.
+    """dbt project with monthly partitions and Databricks lineage.
 
     Extends DbtProjectComponent to:
     1. Remap dbt source nodes to Databricks ingestion assets (full lineage)

@@ -1,7 +1,7 @@
 type: west_bend_demo.components.DatabricksNotebookComponent
 
 attributes:
-  workspace_host: "https://westbend.cloud.databricks.com"
+  workspace_host: "https://your-workspace.cloud.databricks.com"
   # token: Set via DATABRICKS_TOKEN env var, or uncomment and set here
   # cluster_id: "0123-456789-abcdefgh"  # Set to your existing cluster ID
   environment: "qa_poc"
@@ -13,7 +13,7 @@ attributes:
     # Notebook reads AGG_MONTHLY_ZONE_SUMMARY_{YEAR}_{MONTH}.parquet from
     # ADLS outbound container, coalesces to single CSV, writes to
     # Unity Catalog data_feed Volume
-    - notebook_path: "/Repos/west-bend/orchestration-poc/databricks/export_aggregate_data"
+    - notebook_path: "/Repos/orchestration-poc/databricks/export_aggregate_data"
       asset_key: "export_aggregate_data"
       group_name: "databricks_export"
       description: >
@@ -27,5 +27,5 @@ attributes:
       deps: ["mrt/agg_monthly_zone_summary"]
       notebook_params:
         SOURCE_TABLE: "AGG_MONTHLY_ZONE_SUMMARY"
-        STORAGE_ACCOUNT: "westbendadls"
+        STORAGE_ACCOUNT: "youradlsaccount"
         CONTAINER: "outbound"

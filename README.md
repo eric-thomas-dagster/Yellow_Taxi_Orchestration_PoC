@@ -1,60 +1,42 @@
-# west_bend_demo
+# NYC Yellow Taxi - Dagster Orchestration PoC
 
-## Getting started
+Dagster project orchestrating the NYC Yellow Taxi data pipeline across Databricks and Snowflake with monthly partitions for temporal data processing windows.
 
-### Installing dependencies
-
-**Option 1: uv**
-
-Ensure [`uv`](https://docs.astral.sh/uv/) is installed following their [official documentation](https://docs.astral.sh/uv/getting-started/installation/).
-
-Create a virtual environment, and install the required dependencies using _sync_:
+## Quick Start
 
 ```bash
 uv sync
-```
-
-Then, activate the virtual environment:
-
-| OS | Command |
-| --- | --- |
-| MacOS | ```source .venv/bin/activate``` |
-| Windows | ```.venv\Scripts\activate``` |
-
-**Option 2: pip**
-
-Install the python dependencies with [pip](https://pypi.org/project/pip/):
-
-```bash
-python3 -m venv .venv
-```
-
-Then activate the virtual environment:
-
-| OS | Command |
-| --- | --- |
-| MacOS | ```source .venv/bin/activate``` |
-| Windows | ```.venv\Scripts\activate``` |
-
-Install the required dependencies:
-
-```bash
-pip install -e ".[dev]"
-```
-
-### Running Dagster
-
-Start the Dagster UI web server:
-
-```bash
-dg dev
+uv run dagster dev
 ```
 
 Open http://localhost:3000 in your browser to see the project.
 
-## Learn more
+## Architecture
 
-To learn more about this template and Dagster in general:
+```
+Databricks Ingestion       dbt Snowflake (monthly partitioned)              Databricks Export
+───────────────────       ──────────────────────────────────────            ──────────────────
+source_taxi_zone_lookup → stg_taxi_zone_lookup → dim_location ─┐
+                                                                ├→ fact_yellow_taxi_trips
+source_yellow_tripdata  → stg_yellow_taxi_trips ───────────────┘         │
+                                                       ┌─────────────────┤
+                                                       ↓                 ↓
+                                                agg_daily_zone    agg_hourly_demand
+                                                agg_monthly_zone  agg_vendor_performance
+                                                       │
+                                                       ↓
+                                                export_aggregate_data
+```
+
+## Going Live
+
+Set `demo_mode: false` in the Databricks YAML configs and configure:
+
+- `DATABRICKS_TOKEN` env var + `cluster_id` in YAML
+- `target: snowflake` in dbt YAML + Snowflake env vars (`SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_PASSWORD`)
+- Update `source_database` var to `WBMIQA_ORCHPOC_DB`
+
+## Learn More
 
 - [Dagster Documentation](https://docs.dagster.io/)
 - [Dagster University](https://courses.dagster.io/)

@@ -1,4 +1,4 @@
-"""Databricks notebook component for West Bend POC.
+"""Databricks notebook component for NYC Yellow Taxi PoC.
 
 Wraps Databricks notebook execution as Dagster assets with monthly partition support.
 Supports both demo mode (simulated execution) and live mode (real Databricks SDK calls).
@@ -9,7 +9,7 @@ Notebooks in the POC:
   - export_aggregate_data: monthly export (YEAR, MONTH, ENVIRONMENT params)
 
 Each notebook receives YEAR/MONTH extracted from the Dagster partition key,
-matching West Bend's existing parameterization pattern.
+matching the existing parameterization pattern.
 """
 
 import os
@@ -47,7 +47,7 @@ class DatabricksNotebookComponent(dg.Component, dg.Model, dg.Resolvable):
     In demo mode, simulates execution with realistic metadata output.
     """
 
-    workspace_host: str = "https://westbend.cloud.databricks.com"
+    workspace_host: str = "https://your-workspace.cloud.databricks.com"
     token: Optional[str] = None
     environment: str = "qa_poc"
     cluster_id: Optional[str] = None

@@ -1,4 +1,4 @@
-"""Orchestration definitions for the West Bend NYC Yellow Taxi pipeline.
+"""Orchestration definitions for the NYC Yellow Taxi pipeline.
 
 Implements temporal orchestration requirements:
 - Monthly schedule aligned to data processing windows
@@ -28,7 +28,7 @@ full_pipeline_job = dg.define_asset_job(
     ),
     selection=dg.AssetSelection.all(),
     partitions_def=MONTHLY_PARTITIONS,
-    tags={"pipeline": "west_bend_poc", "scope": "full"},
+    tags={"pipeline": "nyc_taxi_poc", "scope": "full"},
 )
 
 ingestion_job = dg.define_asset_job(
@@ -36,7 +36,7 @@ ingestion_job = dg.define_asset_job(
     description="Run only the Databricks source ingestion notebooks for a given month.",
     selection=dg.AssetSelection.groups("databricks_ingestion"),
     partitions_def=MONTHLY_PARTITIONS,
-    tags={"pipeline": "west_bend_poc", "scope": "ingestion"},
+    tags={"pipeline": "nyc_taxi_poc", "scope": "ingestion"},
 )
 
 transformation_job = dg.define_asset_job(
@@ -44,7 +44,7 @@ transformation_job = dg.define_asset_job(
     description="Run only the dbt Snowflake transformations for a given month.",
     selection=dg.AssetSelection.groups("transforms"),
     partitions_def=MONTHLY_PARTITIONS,
-    tags={"pipeline": "west_bend_poc", "scope": "transformation"},
+    tags={"pipeline": "nyc_taxi_poc", "scope": "transformation"},
 )
 
 export_job = dg.define_asset_job(
@@ -52,7 +52,7 @@ export_job = dg.define_asset_job(
     description="Run only the export step for a given month.",
     selection=dg.AssetSelection.groups("databricks_export"),
     partitions_def=MONTHLY_PARTITIONS,
-    tags={"pipeline": "west_bend_poc", "scope": "export"},
+    tags={"pipeline": "nyc_taxi_poc", "scope": "export"},
 )
 
 # ---------------------------------------------------------------------------
